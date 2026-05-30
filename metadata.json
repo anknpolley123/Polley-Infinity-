@@ -1,0 +1,10 @@
+{
+  "name": "Polley-Infinity",
+  "description": "An immersive, responsive Polley-Infinity cybernetic HUD terminal and smart IoT orchestration workspace with server-side AI voice recognition and NLU capabilities.",
+  "requestFramePermissions": [
+    "microphone"
+  ],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

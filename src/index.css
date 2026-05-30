@@ -1,0 +1,111 @@
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@300;400;500;600&family=Inter:wght@300;400;500;600&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Space Grotesk", sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+}
+
+/* Custom Holographic & Jarvis HUD Styling */
+body {
+  margin: 0;
+  padding: 0;
+  background-color: #020617;
+  color: #94a3b8;
+  overflow-x: hidden;
+  font-family: var(--font-sans);
+}
+
+/* Futuristic CRT Scanlines overlay */
+.jarvis-scanlines {
+  position: relative;
+}
+.jarvis-scanlines::after {
+  content: " ";
+  display: block;
+  position: absolute;
+  top: 0; left: 0; bottom: 0; right: 0;
+  background: linear-gradient(rgba(18, 32, 51, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.03), rgba(0, 255, 0, 0.01), rgba(0, 0, 255, 0.03));
+  background-size: 100% 4px, 6px 100%;
+  pointer-events: none;
+  z-index: 99;
+}
+
+/* Sci-fi tech grid background */
+.tech-grid {
+  background-size: 40px 40px;
+  background-image: 
+    linear-gradient(to right, rgba(0, 242, 254, 0.04) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(0, 242, 254, 0.04) 1px, transparent 1px);
+}
+
+/* Pulsing cyber ring animation */
+@keyframes hud-spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+@keyframes hud-counter-spin {
+  0% { transform: rotate(360deg); }
+  100% { transform: rotate(0deg); }
+}
+
+@keyframes voice-wave {
+  0%, 100% { transform: scaleY(0.3); }
+  50% { transform: scaleY(1); }
+}
+
+.spin-hud-fast {
+  animation: hud-spin 8s linear infinite;
+}
+
+.spin-hud-slow {
+  animation: hud-counter-spin 20s linear infinite;
+}
+
+.spin-hud-mid {
+  animation: hud-spin 12s linear infinite;
+}
+
+/* Custom Scrollbar for Terminals */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: rgba(3, 12, 22, 0.5);
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(0, 242, 254, 0.2);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 242, 254, 0.4);
+}
+
+/* Glow classes */
+.glow-cyan {
+  text-shadow: 0 0 8px rgba(0, 242, 254, 0.6);
+}
+.glow-gold {
+  text-shadow: 0 0 8px rgba(251, 191, 36, 0.6);
+}
+.glow-red {
+  text-shadow: 0 0 8px rgba(239, 68, 68, 0.6);
+}
+
+.border-glow-cyan {
+  box-shadow: 0 0 12px rgba(0, 242, 254, 0.15);
+}
+
+.backdrop-blur-tech {
+  backdrop-filter: blur(16px);
+  background-color: rgba(15, 23, 42, 0.4);
+  border: 1px solid rgba(30, 41, 59, 1);
+}
+
+/* Audio Waveform active styling */
+.wave-bar {
+  animation: voice-wave 1.2s ease-in-out infinite;
+}
