@@ -167,7 +167,7 @@ export default function HologramRing({ status, onRingClick, arcPower = 100 }: Ho
               )}
 
               <div className={`font-display text-[10px] font-bold tracking-widest uppercase ${scheme.text}`}>
-                {status === 'listening' ? 'Sir, listening' : status === 'thinking' ? 'Analyzing...' : status === 'speaking' ? 'JARVIS' : status === 'warning' ? 'ALERT' : 'READY'}
+                {status === 'listening' ? 'Comrade, listening' : status === 'thinking' ? 'Analyzing...' : status === 'speaking' ? 'POLLEY-INFINITY' : status === 'warning' ? 'ALERT' : 'READY'}
               </div>
               
               <div className="font-mono text-[8px] text-cyan-400/60 mt-0.5 uppercase">

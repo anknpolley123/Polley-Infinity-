@@ -51,7 +51,7 @@ export default function CountdownsPanel({ countdown, onCancel }: CountdownsPanel
           </div>
 
           <div className="font-mono text-[9px] text-slate-400 bg-black/60 border border-slate-800 px-4 py-2 rounded max-w-sm leading-relaxed">
-            CRITICAL WARNING: SIR, COGNITIVE PATHWAYS ARE RE-ROUTING POWER GRIDS TO AUXILIARY SHUNTS. INITIATION COMPLETES IN SHORT STATED TIME WINDOW.
+            CRITICAL WARNING: COMRADE, COGNITIVE PATHWAYS ARE RE-ROUTING POWER GRIDS TO AUXILIARY SHUNTS. INITIATION COMPLETES IN SHORT STATED TIME WINDOW.
           </div>
 
           <button
@@ -59,7 +59,7 @@ export default function CountdownsPanel({ countdown, onCancel }: CountdownsPanel
             className="mt-4 flex items-center justify-center gap-2 w-full font-mono text-[10px] font-bold bg-red-600/20 border border-red-500 text-red-300 hover:bg-red-600/40 transition-all py-3 rounded-lg"
           >
             <XCircle className="w-4 h-4" />
-            SIR, OVERRIDE PROTOCOL IMMEDIATELY
+            COMRADE, OVERRIDE PROTOCOL IMMEDIATELY
           </button>
         </div>
       </div>

@@ -14,7 +14,7 @@ export default function NetworkMap() {
   const [nodes, setNodes] = useState<NetworkNode[]>([
     { id: 'sat', name: 'orbital_satellite_link.bin', type: 'SATELLITE', latency: 45, status: 'encrypted' },
     { id: 'mainframe', name: 'stark_mainframe.host', type: 'SERVER', latency: 2, status: 'online' },
-    { id: 'mobile', name: 'sir_mobile_hud.dev', type: 'MOBILE', latency: 12, status: 'connected' },
+    { id: 'mobile', name: 'comrade_mobile_hud.dev', type: 'MOBILE', latency: 12, status: 'connected' },
     { id: 'house', name: 'smart_residence.iot', type: 'LOCAL', latency: 8, status: 'online' },
     { id: 'drones', name: 'drone_swarm_mesh.net', type: 'GRID', latency: 32, status: 'encrypted' },
     { id: 'arc', name: 'arc_reactor_shunt.core', type: 'POWER', latency: 1, status: 'online' }

@@ -460,7 +460,7 @@ export default function AuthScreen({ onAuthSuccess }: AuthScreenProps) {
                 </div>
                 <h3 className="text-sm font-semibold uppercase text-emerald-400 tracking-wider">Access Granted</h3>
                 <p className="text-[10px] text-slate-400">
-                  Identity linked successfully. Welcome back to Polley-Infinity, Sir.
+                  Identity linked successfully. Welcome back to Polley-Infinity, Comrade.
                 </p>
               </div>
             )}
@@ -555,7 +555,7 @@ export default function AuthScreen({ onAuthSuccess }: AuthScreenProps) {
                 </div>
                 <h3 className="text-sm font-semibold uppercase text-emerald-400 tracking-wider">Matrix Integration Verified</h3>
                 <p className="text-[10px] text-slate-400">
-                  Zero-Knowledge SRP signature successful. Welcome to the infinite deck, Sir.
+                  Zero-Knowledge SRP signature successful. Welcome to the infinite deck, Comrade.
                 </p>
               </div>
             )}

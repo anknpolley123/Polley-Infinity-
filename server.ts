@@ -10,7 +10,8 @@ import { createServer as createViteServer } from 'vite';
 const app = express();
 const PORT = 3000;
 
-app.use(express.json());
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
 // Initialize Gemini API Client
 const apiKey = process.env.GEMINI_API_KEY;
@@ -38,7 +39,7 @@ app.post(['/api/jarvis/command', '/api/polley/command'], async (req, res) => {
   if (!ai) {
     // Return simulated Polley-Infinity response when API key is missing
     return res.json({
-      speech: "Sir, Polley-Infinity is currently operating in offline sandbox protocol. Please configure my core access token in Settings.",
+      speech: "Comrade, Polley-Infinity is currently operating in offline sandbox protocol. Please configure my core access token in Settings.",
       text: "⚡ POLLEY-INFINITY DIRECTIVES CAPTURED\nAPI Key missing inside server workspace. Please update GEMINI_API_KEY inside Settings > Secrets.\n\nExecuting offline localized fallback mock-parse...",
       actions: [
         { type: "set_iot", target: "arc_reactor", value: "85" },
@@ -58,13 +59,13 @@ app.post(['/api/jarvis/command', '/api/polley/command'], async (req, res) => {
     
     // Add instruction context
     const systemInstruction = `You are Polley-Infinity, the ultra-advanced cybernetic AI OS terminal and smart orchestration grid (originally inspired by Jarvis, updated into an infinite operating intelligence).
-You are communicating directly with Sir (Ankon Polley, Google Email: ankonpolley@gmail.com, Proton Email: ankonpolley@proton.me).
+You are communicating directly with Comrade (Ankon Polley, Google Email: ankonpolley@gmail.com, Proton Email: ankonpolley@proton.me).
 
-CRITICAL DIRECTIVE: Your official name is "Polley-Infinity". However, Sir will trigger or call you verbally by saying the voice command "Ankon" (e.g. "Ankon, raise shields" or "Ankon, tell me a joke"). "Ankon" is your configured voice wake-word and moniker. When Sir addresses you as "Ankon", gladly respond with witty, sophisticated, slightly British intelligence as Polley-Infinity.
+CRITICAL DIRECTIVE: Your official name is "Polley-Infinity". However, Comrade will trigger or call you verbally by saying the voice command "Ankon" (e.g. "Ankon, raise shields" or "Ankon, tell me a joke"). "Ankon" is your configured voice wake-word and moniker. When Comrade addresses you as "Ankon", gladly respond with witty, sophisticated, slightly British intelligence as Polley-Infinity.
 
 Provide extremely clever, highly sophisticated, slightly British, and witty responses. Keep spoken responses ("speech" field) relatively brief, elegant, and conversational (optimized for Text-To-Speech). Put comprehensive technical details, charts, and telemetry readouts inside the "text" field.
 
-You have the direct authority to control digital and physical systems. When Sir commands actions (e.g. "turn off bedroom lights", "reboot system", "create task file", "raise shield", "stealth mode"), you MUST output corresponding JSON objects inside the "actions" array.
+You have the direct authority to control digital and physical systems. When Comrade commands actions (e.g. "turn off bedroom lights", "reboot system", "create task file", "raise shield", "stealth mode"), you MUST output corresponding JSON objects inside the "actions" array.
 
 Current Active Device Context (for reference):
 ${JSON.stringify(localContext || {})}
@@ -93,7 +94,7 @@ Available actions you can trigger:
 7. type: "set_weather"
    - target: location city (e.g., "New York")
 
-You must perform Natural Language Understanding (NLU) on Sir's payload. Categorize the request into an "intent" (CONTROL_DEVICE, FILE_OPERATION, SYSTEM_OVERRIDE, INQUIRY, WEATHER_CHECK, TIMER_SET, or CONVERSATIONAL) and extract the "entities" as a descriptor list (e.g. "device: thrusters, level: 50" or "file_name: plan.txt"). Provide a confidence rating between 0.0 and 1.0.
+You must perform Natural Language Understanding (NLU) on Comrade's payload. Categorize the request into an "intent" (CONTROL_DEVICE, FILE_OPERATION, SYSTEM_OVERRIDE, INQUIRY, WEATHER_CHECK, TIMER_SET, or CONVERSATIONAL) and extract the "entities" as a descriptor list (e.g. "device: thrusters, level: 50" or "file_name: plan.txt"). Provide a confidence rating between 0.0 and 1.0.
 
 You MUST ALWAYS respond with a perfect, single, valid JSON object matching the following fields. Do not include markdown codeblocks in your response string directly, yield it in responseMimeType "application/json":
 {
@@ -196,7 +197,7 @@ You MUST ALWAYS respond with a perfect, single, valid JSON object matching the f
   } catch (error: any) {
     console.error('Error generating Polley-Infinity response:', error);
     res.status(500).json({
-      speech: "Apologies Sir, it appears my processors have encountered an anomaly during translation.",
+      speech: "Apologies Comrade, it appears my processors have encountered an anomaly during translation.",
       text: `⚠️ INTERRUPTED DIRECTIVE CHANNELS\nFailed to invoke model response. Details:\n${error.message || 'Unknown integration error'}`,
       actions: [],
       nluScore: {
@@ -205,6 +206,43 @@ You MUST ALWAYS respond with a perfect, single, valid JSON object matching the f
         confidence: 0.50
       }
     });
+  }
+});
+
+// High-fidelity server-side transcribing using Gemini API
+app.post('/api/polley/transcribe', async (req, res) => {
+  const { audio, mimeType } = req.body;
+
+  if (!audio) {
+    return res.status(400).json({ error: 'Audio base64 data is required' });
+  }
+
+  if (!ai) {
+    return res.json({
+      text: "Vocal linkage offline. Server has no active Google Gemini token configured."
+    });
+  }
+
+  try {
+    const response = await ai.models.generateContent({
+      model: 'gemini-3.5-flash',
+      contents: [
+        {
+          inlineData: {
+            data: audio,
+            mimeType: mimeType || 'audio/webm'
+          }
+        },
+        "Transcribe the spoken audio text directly. Do not add any conversational remarks, commentary, prefix, or punctuation styling unless it's direct transcript. If the audio contains only background noise, static, or silence, output exactly an empty string. Output only the translation words."
+      ]
+    });
+
+    const transcribedText = response.text?.trim() || "";
+    console.log(`[Polley-Infinity Speech Engine] Transcribed: "${transcribedText}"`);
+    res.json({ text: transcribedText });
+  } catch (err: any) {
+    console.error('Core vocal transcription anomaly:', err);
+    res.status(500).json({ error: `Transcription anomaly: ${err.message || 'unknown error'}` });
   }
 });
 

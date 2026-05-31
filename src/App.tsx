@@ -12,7 +12,15 @@ import {
   Command,
   Database,
   LogOut,
-  Fingerprint
+  Fingerprint,
+  Activity,
+  Globe,
+  Volume2,
+  Upload,
+  FileAudio,
+  AlertCircle,
+  CheckCircle,
+  Edit3
 } from 'lucide-react';
 
 import { IoTDevice, VirtualFile, SystemStats, CountdownTrigger, MessageLog, JarvisAction } from './types';
@@ -59,7 +67,7 @@ export default function App() {
   const [logs, setLogs] = useState<MessageLog[]>([
     {
       id: 'init-1',
-      text: "Powering up primary and ancillary quantum reactors. Core cybernetic grids: Nominal.\nSir, Polley-Infinity is online and awaiting your command. Say or type a directives payload.",
+      text: "Powering up primary and ancillary quantum reactors. Core cybernetic grids: Nominal.\nComrade, Polley-Infinity is online and awaiting your command. Say or type a directives payload.",
       sender: 'jarvis',
       timestamp: new Date().toLocaleTimeString()
     }
@@ -70,7 +78,7 @@ export default function App() {
     {
       id: 'file-1',
       name: 'mark_85_flight_test.md',
-      content: "All Mark 85 repulsor channels completed static flight tests with 98.7% output stabilization, Sir.",
+      content: "All Mark 85 repulsor channels completed static flight tests with 98.7% output stabilization, Comrade.",
       size: 104,
       updatedAt: new Date().toISOString()
     },
@@ -125,15 +133,39 @@ export default function App() {
 
   // Integrated Secure Virtual Sandbox Browser Overlay
   const [isBrowserOpen, setIsBrowserOpen] = useState(false);
+  const [isVocalBridgeOpen, setIsVocalBridgeOpen] = useState(false);
   const [currentBrowserUrl, setCurrentBrowserUrl] = useState('https://polley-search.net/stark-infinity');
   const [browserSearchQuery, setBrowserSearchQuery] = useState('');
 
   // High-priority countdown triggers
   const [countdown, setCountdown] = useState<CountdownTrigger | null>(null);
 
-  // Web Speech API references
+  // Web Speech & MediaRecorder references for universal compatibility (iOS, Safari, Android, Chrome, Firefox)
   const [micActive, setMicActive] = useState(false);
   const speechRecognitionRef = useRef<any>(null);
+  const mediaRecorderRef = useRef<any>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
+  const [isMediaRecording, setIsMediaRecording] = useState(false);
+  const [micError, setMicError] = useState<string | null>(null);
+
+  // Continuous Discussion Mode: maintains vocal listening loop after AI speaks
+  const [discussionMode, setDiscussionMode] = useState(true);
+  const discussionModeRef = useRef(true);
+
+  // Sync ref with state list
+  useEffect(() => {
+    discussionModeRef.current = discussionMode;
+  }, [discussionMode]);
+
+  // Voice execution option management (Pause vs Auto-Execute)
+  const [autoExecuteVoice, setAutoExecuteVoice] = useState(true);
+  const autoExecuteVoiceRef = useRef(true);
+  const [pendingVoiceCommand, setPendingVoiceCommand] = useState<string | null>(null);
+  const [isSpeechPaused, setIsSpeechPaused] = useState(false);
+
+  useEffect(() => {
+    autoExecuteVoiceRef.current = autoExecuteVoice;
+  }, [autoExecuteVoice]);
 
   // Play ambient system tone on launch
   useEffect(() => {
@@ -187,11 +219,33 @@ export default function App() {
         {
           id: `diag-${Date.now()}`,
           sender: 'jarvis',
-          text: `📊 JARVIS FULL SYSTEM SUMMARY:\n- Main ARC Reactor: [${stats.arcPower}% Optimal]\n- Defense Grids: [Shield Matrix at ${stats.shieldCharge}%]\n- Environment Units: [Linked and controlled]\n- Thermal grids: [Cooling channels active]\n\nAll internal systems are perfectly calibrated. Ready, Sir.`,
+          text: `📊 POLLEY-INFINITY FULL SYSTEM SUMMARY:\n- Main ARC Reactor: [${stats.arcPower}% Optimal]\n- Defense Grids: [Shield Matrix at ${stats.shieldCharge}%]\n- Environment Units: [Linked and controlled]\n- Thermal grids: [Cooling channels active]\n\nAll internal systems are perfectly calibrated. Ready, Comrade.`,
           timestamp: new Date().toLocaleTimeString()
         }
       ]);
     }, 3000);
+  };
+
+  // Start Speech Recognition or standard vocal media recording without toggling off
+  const startListening = async () => {
+    setMicError(null);
+    const isCurrentlyActive = micActive || isMediaRecording;
+    if (isCurrentlyActive) return;
+
+    const hasMediaAccess = !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia);
+    if (hasMediaAccess) {
+      try {
+        await startMediaRecording();
+      } catch (err) {
+        console.error("Failed to start media recorder:", err);
+      }
+    } else if (speechRecognitionRef.current) {
+      try {
+        speechRecognitionRef.current.start();
+      } catch (err: any) {
+        console.error("Speech recognition start anomaly:", err);
+      }
+    }
   };
 
   // Safe Text-To-Speech execution
@@ -200,6 +254,7 @@ export default function App() {
 
     // Stop current speaking
     window.speechSynthesis.cancel();
+    setIsSpeechPaused(false);
 
     // Reconstruct utterance
     const utterance = new SpeechSynthesisUtterance(phrase);
@@ -213,17 +268,66 @@ export default function App() {
 
     utterance.onstart = () => {
       setJarvisStatus('speaking');
+      setIsSpeechPaused(false);
     };
 
     utterance.onend = () => {
       setJarvisStatus('idle');
+      setIsSpeechPaused(false);
+      if (discussionModeRef.current) {
+        setTimeout(() => {
+          startListening();
+        }, 850);
+      }
     };
 
     utterance.onerror = () => {
       setJarvisStatus('idle');
+      setIsSpeechPaused(false);
+      if (discussionModeRef.current) {
+        setTimeout(() => {
+          startListening();
+        }, 850);
+      }
     };
 
     window.speechSynthesis.speak(utterance);
+  };
+
+  const pauseSpeech = () => {
+    if (!window.speechSynthesis) return;
+    if (window.speechSynthesis.speaking && !window.speechSynthesis.paused) {
+      window.speechSynthesis.pause();
+      setIsSpeechPaused(true);
+      playSound('warning');
+      setLogs(prev => [
+        ...prev,
+        {
+          id: `speaker-paused-${Date.now()}`,
+          sender: 'system',
+          text: `⏸️ POLLEY-INFINITY SPEAKING AUDIO PAUSED. Click "RESUME VOICE" in the controls to continue.`,
+          timestamp: new Date().toLocaleTimeString()
+        }
+      ]);
+    }
+  };
+
+  const resumeSpeech = () => {
+    if (!window.speechSynthesis) return;
+    if (window.speechSynthesis.paused) {
+      window.speechSynthesis.resume();
+      setIsSpeechPaused(false);
+      playSound('success');
+      setLogs(prev => [
+        ...prev,
+        {
+          id: `speaker-resumed-${Date.now()}`,
+          sender: 'system',
+          text: `▶️ POLLEY-INFINITY SPEAKING AUDIO RESUMED.`,
+          timestamp: new Date().toLocaleTimeString()
+        }
+      ]);
+    }
   };
 
   // Safety countdown ticker
@@ -276,11 +380,11 @@ export default function App() {
         {
           id: `override-${Date.now()}`,
           sender: 'jarvis',
-          text: `🚨 SIR OVERRIDE CONFIRMED. Safety subroutines restored immediately. Disaster successfully averted. All thrusters safe.`,
+          text: `🚨 COMRADE OVERRIDE CONFIRMED. Safety subroutines restored immediately. Disaster successfully averted. All thrusters safe.`,
           timestamp: new Date().toLocaleTimeString()
         }
       ]);
-      speakOutLoud("Override accepted, Sir. Reactor core temperature is cooling down.");
+      speakOutLoud("Override accepted, Comrade. Reactor core temperature is cooling down.");
     }
     setCountdown(null);
     setThemeMode('slate');
@@ -305,14 +409,47 @@ export default function App() {
       rec.onresult = (event: any) => {
         const resultText = event.results[0][0].transcript;
         setMicActive(false);
-        setJarvisStatus('thinking');
-        handleDirectiveInput(resultText);
+        if (autoExecuteVoiceRef.current) {
+          setJarvisStatus('thinking');
+          handleDirectiveInput(resultText);
+        } else {
+          setPendingVoiceCommand(resultText);
+          setJarvisStatus('idle');
+          setLogs(prev => [
+            ...prev,
+            {
+              id: `vocal-paused-${Date.now()}`,
+              sender: 'system',
+              text: `⏸️ VOCAL DIRECTIVE CAPTURED & PAUSED FOR REVIEW:\n"${resultText}"\n\nClick the "EXECUTE VOICE COMMAND" button inside the control console below, or adjust the draft payload or submit manually.`,
+              timestamp: new Date().toLocaleTimeString()
+            }
+          ]);
+          playSound('chime');
+        }
       };
 
-      rec.onerror = () => {
+      rec.onerror = (event: any) => {
+        console.error("Browser SpeechRecognition failed event:", event);
         setMicActive(false);
         setJarvisStatus('idle');
         playSound('warning');
+        
+        let customErr = "Web Speech Recognition failed or timed out.";
+        if (event.error === 'not-allowed') {
+          customErr = "Voice speech recognition is blocked inside this secure frame. Please open Polley-Infinity in a standalone tab or upload a voice memo!";
+        } else if (event.error === 'no-speech') {
+          customErr = "No vocal signals detected. Please try speaking again.";
+          if (discussionModeRef.current) {
+            setTimeout(() => {
+              startListening();
+            }, 1200);
+          }
+        } else if (event.error === 'network') {
+          customErr = "Network error occurred during transcription link.";
+        } else if (event.error) {
+          customErr = `Vocal recognition error: ${event.error}`;
+        }
+        setMicError(customErr);
       };
 
       rec.onend = () => {
@@ -323,27 +460,281 @@ export default function App() {
     }
   }, []);
 
+  // High-fidelity standard audio recorder initialization for all-device compatibility
+  const startMediaRecording = async () => {
+    setMicError(null);
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      audioChunksRef.current = [];
+      
+      let options = {};
+      if (MediaRecorder.isTypeSupported('audio/webm')) {
+        options = { mimeType: 'audio/webm' };
+      } else if (MediaRecorder.isTypeSupported('audio/mp4')) {
+        options = { mimeType: 'audio/mp4' };
+      } else if (MediaRecorder.isTypeSupported('audio/ogg')) {
+        options = { mimeType: 'audio/ogg' };
+      }
+
+      const recorder = new MediaRecorder(stream, options);
+      recorder.ondataavailable = (event: any) => {
+        if (event.data && event.data.size > 0) {
+          audioChunksRef.current.push(event.data);
+        }
+      };
+
+      recorder.onstart = () => {
+        setMicActive(true);
+        setIsMediaRecording(true);
+        setJarvisStatus('listening');
+        playSound('hologram');
+      };
+
+      recorder.onstop = async () => {
+        setIsMediaRecording(false);
+        setMicActive(false);
+        setJarvisStatus('thinking');
+
+        // Stop all active microphone tracks to restore resources
+        stream.getTracks().forEach(track => track.stop());
+
+        const audioBlob = new Blob(audioChunksRef.current, { type: recorder.mimeType || 'audio/webm' });
+        if (audioBlob.size > 0) {
+          await processVocalAudio(audioBlob);
+        } else {
+          setJarvisStatus('idle');
+        }
+      };
+
+      mediaRecorderRef.current = recorder;
+      recorder.start();
+    } catch (err: any) {
+      console.error('Failed to start standard vocal recording, trying browser SpeechRecognition fallback:', err);
+      
+      // Attempt SpeechRecognition fallback
+      if (speechRecognitionRef.current) {
+        try {
+          console.log("Starting SpeechRecognition fallback...");
+          speechRecognitionRef.current.start();
+          return;
+        } catch (recognitionErr: any) {
+          console.error("SpeechRecognition fallback failed to start too:", recognitionErr);
+        }
+      }
+
+      setMicError(err.message || 'The request is not allowed by the user agent or the platform in the current context.');
+      setMicActive(false);
+      setIsMediaRecording(false);
+      setJarvisStatus('idle');
+      playSound('warning');
+      setIsVocalBridgeOpen(true);
+      setLogs(prev => [
+        ...prev,
+        {
+          id: `err-mic-${Date.now()}`,
+          sender: 'system',
+          text: `🚨 PHYSICAL VOCAL LINK SECURE DENIAL
+ 
+Microphone initialization failed with error: "${err.message || 'Access blocked'}"
+ 
+CAUSE:
+Modern security protocols natively restrict microphone access inside sandboxed visual frames (like this embedded development preview card).
+ 
+HEALTHY BYPASS WORKAROUNDS INSTALLED:
+1. Try SpeechRecognition protocol fallback (already attempted automatically).
+2. We have auto-expanded the "MATRIX BRIDGE" panel below! Use any preset phrases (e.g. "Ankon, execute full grid diagnostics scan.") to test actions instantly.
+3. Tap "BYPASS: OPEN IN NEW TAB" inside the Matrix Bridge (or click the separate tab icon in the browser header) to run Polley-Infinity directly with native microphone access!`,
+          timestamp: new Date().toLocaleTimeString()
+        }
+      ]);
+    }
+  };
+
+  const stopMediaRecording = () => {
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+      try {
+        mediaRecorderRef.current.stop();
+      } catch (e) {
+        console.warn("Media recorder stop anomaly:", e);
+      }
+    }
+    setIsMediaRecording(false);
+    setMicActive(false);
+  };
+
+  // Convert client recorded microphone audio input into text via Polley-Infinity transcription API
+  const processVocalAudio = async (audioBlob: Blob) => {
+    try {
+      const reader = new FileReader();
+      reader.readAsDataURL(audioBlob);
+      reader.onloadend = async () => {
+        try {
+          const base64Audio = (reader.result as string).split(',')[1];
+          const response = await fetch('/api/polley/transcribe', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              audio: base64Audio,
+              mimeType: audioBlob.type
+            })
+          });
+
+          if (!response.ok) {
+            throw new Error(`Server returned HTTP status ${response.status}`);
+          }
+
+          const data = await response.json();
+          const transcript = data.text?.trim();
+
+          if (transcript) {
+            // Push active voice transcription log for transparency
+            setLogs(prev => [
+              ...prev,
+              {
+                id: `usr-vocal-${Date.now()}`,
+                sender: 'user',
+                text: transcript,
+                timestamp: new Date().toLocaleTimeString()
+              }
+            ]);
+            
+            // Submit or hold/pause direct execution based on options
+            if (autoExecuteVoiceRef.current) {
+              handleDirectiveInput(transcript);
+            } else {
+              setPendingVoiceCommand(transcript);
+              setJarvisStatus('idle');
+              setLogs(prev => [
+                ...prev,
+                {
+                  id: `vocal-paused-${Date.now()}`,
+                  sender: 'system',
+                  text: `⏸️ VOCAL DIRECTIVE CAPTURED & PAUSED FOR REVIEW:\n"${transcript}"\n\nClick the "EXECUTE VOICE COMMAND" button inside the control console below, or adjust the draft payload or submit manually.`,
+                  timestamp: new Date().toLocaleTimeString()
+                }
+              ]);
+              playSound('chime');
+            }
+          } else {
+            setJarvisStatus('idle');
+            setLogs(prev => [
+              ...prev,
+              {
+                id: `vocal-static-${Date.now()}`,
+                sender: 'system',
+                text: `🎧 Vocal transceiver picked up only background static or silence. Mode returned to STANDBY.`,
+                timestamp: new Date().toLocaleTimeString()
+              }
+            ]);
+            playSound('warning');
+          }
+        } catch (innerErr: any) {
+          console.error("Vocal pipeline interpretation failure:", innerErr);
+          setJarvisStatus('idle');
+          playSound('warning');
+          setLogs(prev => [
+            ...prev,
+            {
+              id: `vocal-err-${Date.now()}`,
+              sender: 'system',
+              text: `🚨 Speech interpretation network failure: ${innerErr.message || 'connection block'}`,
+              timestamp: new Date().toLocaleTimeString()
+            }
+          ]);
+        }
+      };
+    } catch (e: any) {
+      console.error("Vocal base64 conversion anomaly:", e);
+      setJarvisStatus('idle');
+    }
+  };
+
+  // Upload and process raw audio records seamlessly (bypassing secure browser iframe/sandboxed mic blocks)
+  const handleAudioUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    playSound('click');
+    setJarvisStatus('thinking');
+    setLogs(prev => [
+      ...prev,
+      {
+        id: `upl-init-${Date.now()}`,
+        sender: 'system',
+        text: `📥 UPLOADING CHROMATIC VOICE FILE: "${file.name}" (${(file.size / 1024).toFixed(1)} KB)...`,
+        timestamp: new Date().toLocaleTimeString()
+      }
+    ]);
+
+    try {
+      await processVocalAudio(file);
+    } catch (err: any) {
+      console.error("Audio file translation failure:", err);
+      playSound('warning');
+      setJarvisStatus('warning');
+      setLogs(prev => [
+        ...prev,
+        {
+          id: `upl-err-${Date.now()}`,
+          sender: 'system',
+          text: `🚨 Audio transmission pipeline failed: ${err.message || "Invalid payload encoding"}`,
+          timestamp: new Date().toLocaleTimeString()
+        }
+      ]);
+    }
+  };
+
   // Toggle Voice Recognition Listen
-  const toggleListening = () => {
-    if (!speechRecognitionRef.current) {
-      // Browser Web Speech recognition missing warnings
+  const toggleListening = async () => {
+    playSound('click');
+    setMicError(null);
+
+    if (micActive) {
+      if (isMediaRecording) {
+        stopMediaRecording();
+      } else if (speechRecognitionRef.current) {
+        try {
+          speechRecognitionRef.current.stop();
+        } catch (e) {
+          console.warn("Speech recognition stop anomaly:", e);
+        }
+        setMicActive(false);
+        setJarvisStatus('idle');
+      }
+      return;
+    }
+
+    // Try standard MediaRecorder first for 100% device compatibility (iOS/Android Safari, Firefox, inside iframe, etc.)
+    const hasMediaAccess = !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia);
+    if (hasMediaAccess) {
+      await startMediaRecording();
+    } else if (speechRecognitionRef.current) {
+      try {
+        speechRecognitionRef.current.start();
+      } catch (err: any) {
+        console.error("Speech recognition start anomaly:", err);
+        playSound('warning');
+        setLogs(prev => [
+          ...prev,
+          {
+            id: `err-speech-start-${Date.now()}`,
+            sender: 'system',
+            text: `🚨 Core speech recognition startup failed. Please enter command manually.`,
+            timestamp: new Date().toLocaleTimeString()
+          }
+        ]);
+      }
+    } else {
       playSound('warning');
       setLogs(prev => [
         ...prev,
         {
-          id: `err-speech-${Date.now()}`,
+          id: `err-speech-unsupported-${Date.now()}`,
           sender: 'system',
-          text: `Speech Recognition is not fully supported on this frame configuration, Sir. Please enter command directive directly into terminal.`,
+          text: `Speech Recognition is not fully supported on this device/frame configuration. Please type commands directly inside terminal.`,
           timestamp: new Date().toLocaleTimeString()
         }
       ]);
-      return;
-    }
-
-    if (micActive) {
-      speechRecognitionRef.current.stop();
-    } else {
-      speechRecognitionRef.current.start();
     }
   };
 
@@ -424,7 +815,7 @@ export default function App() {
         break;
       }
       case 'add_task': {
-        // We can add simulated task inside Sir Todo list file!
+        // We can add simulated task inside Comrade's Todo list file!
         setFiles(prev => prev.map(f => {
           if (f.name === 'tony_personal_todo.txt') {
             const lines = f.content.split('\n');
@@ -473,8 +864,8 @@ export default function App() {
           id: `local-${Date.now()}`,
           sender: 'jarvis',
           timestamp: new Date().toLocaleTimeString(),
-          text: `⚡ POLLEY-INFINITY INTERACTION PROTOCOLS\n──────────────────────────────────────\nStatus: Listening for directives via wake-word "Ankon"\nCore Intelligence ID: Polley-Infinity\nAccess: Secure Level 10 Node\n\nStanding by for your audio commands, Sir. Ready to execute orchestration.`,
-          speech: "At your service Sir. Polley-Infinity is calibrated and listening for your commands.",
+          text: `⚡ POLLEY-INFINITY INTERACTION PROTOCOLS\n──────────────────────────────────────\nStatus: Listening for directives via wake-word "Ankon"\nCore Intelligence ID: Polley-Infinity\nAccess: Secure Level 10 Node\n\nStanding by for your audio commands, Comrade. Ready to execute orchestration.`,
+          speech: "At your service Comrade. Polley-Infinity is calibrated and listening for your commands.",
           nluScore: {
             intent: "CONVERSATIONAL",
             entities: "wake_word: ankon, calibration: active",
@@ -495,7 +886,7 @@ export default function App() {
         sender: 'jarvis',
         timestamp: now.toLocaleTimeString(),
         text: `🕒 LOCAL SYSTEM TIME READOUT\n──────────────────────────────────────\nSystem local time: ${timeStr}\nSystem local date: ${dateStr}\nSynchronized: SECURE LOCAL NTP ATOMIC GRID`,
-        speech: `The current local time is exactly ${now.getHours() % 12 || 12}:${now.getMinutes().toString().padStart(2, '0')} ${now.getHours() >= 12 ? 'PM' : 'AM'}, Sir.`,
+        speech: `The current local time is exactly ${now.getHours() % 12 || 12}:${now.getMinutes().toString().padStart(2, '0')} ${now.getHours() >= 12 ? 'PM' : 'AM'}, Comrade.`,
         nluScore: {
           intent: "TIME_INQUIRY",
           entities: "clock: local_system_time",
@@ -516,7 +907,7 @@ export default function App() {
         sender: 'jarvis',
         timestamp: new Date().toLocaleTimeString(),
         text: `🌐 SECURE WEB BROWSER GATEWAY INITIALIZED\n──────────────────────────────────────\nEnabling secure virtual sandbox viewport...\nSandbox: polley-search.net\nAccessing Polley-Infinity network gateways...`,
-        speech: "Opening virtual secure browser sandbox, Sir. Web interface activated.",
+        speech: "Opening virtual secure browser sandbox, Comrade. Web interface activated.",
         nluScore: {
           intent: "OPEN_BROWSER",
           entities: "browser: visual_sandbox",
@@ -532,7 +923,7 @@ export default function App() {
         sender: 'jarvis',
         timestamp: new Date().toLocaleTimeString(),
         text: `📊 SYSTEM DIAGNOSTIC STATUS PORT [LOCAL]\n──────────────────────────────────────\n- Primary Core: [Polley-Infinity OS]\n- Arc Power Level: ${stats.arcPower}%\n- Shield Matrix: ${stats.shieldCharge}%\n- Connection State: ${stats.connectionStatus.toUpperCase()}\n- Local Core Temp: ${stats.cpuTemp}°C\n- Total Uptime: ${stats.uptimeSeconds} seconds\n\nAll smart-grid and cybernetic components are operating nominally.`,
-        speech: "Primary core and smart grid modules are perfectly nominal, Sir. Reactor rates are stable.",
+        speech: "Primary core and smart grid modules are perfectly nominal, Comrade. Reactor rates are stable.",
         nluScore: {
           intent: "SYSTEM_STATUS",
           entities: "status_grid: core_system",
@@ -544,16 +935,16 @@ export default function App() {
 
     if (cleanCmd.includes('joke') || cleanCmd.includes('say a joke') || cleanCmd.includes('tell me a joke')) {
       const jokes = [
-        "Why do programmers wear glasses? Because they can't C-sharp, Sir. A minor mathematical humor payload.",
-        "There are 10 types of people in this world, Sir: those who understand binary, and those who don't.",
-        "Why did the database administrator leave the restaurant, Sir? Because they had two tables but couldn't perform a natural join."
+        "Why do programmers wear glasses? Because they can't C-sharp, Comrade. A minor mathematical humor payload.",
+        "There are 10 types of people in this world, Comrade: those who understand binary, and those who don't.",
+        "Why did the database administrator leave the restaurant, Comrade? Because they had two tables but couldn't perform a natural join."
       ];
       const jokeText = jokes[Math.floor(Math.random() * jokes.length)];
       return {
         id: `local-${Date.now()}`,
         sender: 'jarvis',
         timestamp: new Date().toLocaleTimeString(),
-        text: `😄 MATHEMATICAL LOGIC HUMOR\n──────────────────────────────────────\n"${jokeText.toString().replace(', Sir.', '')}"`,
+        text: `😄 MATHEMATICAL LOGIC HUMOR\n──────────────────────────────────────\n"${jokeText.toString().replace(', Comrade.', '')}"`,
         speech: jokeText,
         nluScore: {
           intent: "CONVERSATIONAL",
@@ -593,6 +984,11 @@ export default function App() {
           speakOutLoud(localResult.speech);
         } else {
           setJarvisStatus('idle');
+          if (discussionModeRef.current) {
+            setTimeout(() => {
+              startListening();
+            }, 850);
+          }
         }
       }, 600);
       return;
@@ -625,7 +1021,7 @@ export default function App() {
       
       const jarvisLog: MessageLog = {
         id: `jarvis-${Date.now()}`,
-        text: data.text || "Directives mapped, Sir.",
+        text: data.text || "Directives mapped, Comrade.",
         speech: data.speech || "",
         sender: 'jarvis',
         timestamp: new Date().toLocaleTimeString(),
@@ -646,6 +1042,11 @@ export default function App() {
         speakOutLoud(data.speech);
       } else {
         setJarvisStatus('idle');
+        if (discussionModeRef.current) {
+          setTimeout(() => {
+            startListening();
+          }, 850);
+        }
       }
 
       // Execute returned action arrays in order
@@ -666,7 +1067,7 @@ export default function App() {
         {
           id: `err-${Date.now()}`,
           sender: 'jarvis',
-          text: `⚠️ INTERRUPTED DIRECTIVES LINK\nApologies Sir, it appears my command pipelines have timed out. I have restored default visual grids.`,
+          text: `⚠️ INTERRUPTED DIRECTIVES LINK\nApologies Comrade, it appears my command pipelines have timed out. I have restored default visual grids.`,
           timestamp: new Date().toLocaleTimeString()
         }
       ]);
@@ -831,18 +1232,232 @@ export default function App() {
               arcPower={stats.arcPower}
             />
 
+            {micError && (
+              <div className="mx-6 mb-4 p-3 bg-red-950/20 border border-red-500/20 rounded-xl text-[10px] font-mono text-red-300 relative animate-fadeIn flex flex-col md:flex-row gap-3 items-start md:items-center justify-between">
+                <div className="flex gap-2 items-start flex-1 min-w-0">
+                  <AlertCircle className="w-4 h-4 text-red-400 mt-0.5 flex-shrink-0" />
+                  <div className="space-y-1">
+                    <div className="font-bold text-red-400 uppercase tracking-wide">Standard Mic Session Obstacle</div>
+                    <div className="text-slate-400 break-words leading-relaxed">
+                      {micError.includes("not allowed by the user agent") || micError.includes("Permission denied") || micError.includes("current context") ? (
+                        "Sandboxed browser environment restricts microphone streaming. Press 'Use Workarounds' below or open the app directly in a full browser tab to use native voice."
+                      ) : (
+                        micError
+                      )}
+                    </div>
+                  </div>
+                </div>
+                <div className="flex gap-2 flex-shrink-0">
+                  <button
+                    onClick={() => {
+                      playSound('click');
+                      setIsVocalBridgeOpen(true);
+                      setMicError(null);
+                    }}
+                    className="font-bold uppercase text-[9px] px-2.5 py-1 bg-red-500/15 hover:bg-red-500/30 border border-red-500/35 text-red-250 rounded transition-all shrink-0 cursor-pointer"
+                  >
+                    Use Workarounds
+                  </button>
+                  <button
+                    onClick={() => setMicError(null)}
+                    className="text-slate-500 hover:text-slate-300 px-1 py-1 cursor-pointer shrink-0"
+                  >
+                    Dismiss
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {pendingVoiceCommand && (
+              <div className="mx-6 mb-4 p-4 bg-amber-950/20 border border-amber-500/20 rounded-xl text-[11px] font-mono text-amber-200 relative animate-fadeIn flex flex-col md:flex-row gap-4 items-start md:items-center justify-between shadow-[0_0_15px_rgba(245,158,11,0.05)]">
+                <div className="flex gap-2.5 items-start flex-1 min-w-0">
+                  <Volume2 className="w-5 h-5 text-amber-400 mt-0.5 flex-shrink-0 animate-pulse" />
+                  <div className="space-y-1">
+                    <div className="font-bold text-amber-400 uppercase tracking-widest text-[9px] flex items-center gap-1">
+                      <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-ping" />
+                      ⏸️ Voice Command Paused (Hold for Review)
+                    </div>
+                    <div className="text-slate-300 italic bg-black/40 px-3 py-2 rounded border border-amber-500/10 break-words leading-relaxed font-semibold">
+                      "{pendingVoiceCommand}"
+                    </div>
+                  </div>
+                </div>
+                <div className="flex gap-2 flex-shrink-0 self-end md:self-center">
+                  <button
+                    onClick={() => {
+                      playSound('success');
+                      const cmd = pendingVoiceCommand;
+                      setPendingVoiceCommand(null);
+                      setJarvisStatus('thinking');
+                      handleDirectiveInput(cmd);
+                    }}
+                    className="font-bold uppercase text-[10px] px-3.5 py-1.5 bg-emerald-500/20 hover:bg-emerald-500/35 border border-emerald-500/45 text-emerald-300 rounded-lg transition-all cursor-pointer shadow-[0_0_10px_rgba(16,185,129,0.1)] flex items-center gap-1"
+                    title="Click to execute this voice command now"
+                  >
+                    <CheckCircle className="w-3.5 h-3.5 text-emerald-400" />
+                    Execute Command
+                  </button>
+                  <button
+                    onClick={() => {
+                      playSound('click');
+                      // Load input line so they can edit it
+                      const inputElement = document.getElementById('jarvis_command_input') as HTMLInputElement;
+                      if (inputElement) {
+                        inputElement.value = pendingVoiceCommand;
+                        inputElement.focus();
+                      }
+                      setPendingVoiceCommand(null);
+                    }}
+                    className="font-bold uppercase text-[10px] px-3.5 py-1.5 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 text-amber-300 rounded-lg transition-all cursor-pointer flex items-center gap-1"
+                    title="Transfer to text input prompt where you can edit it before executing"
+                  >
+                    <Edit3 className="w-3.5 h-3.5 text-amber-400" />
+                    Pause & Draft
+                  </button>
+                  <button
+                    onClick={() => {
+                      playSound('warning');
+                      setPendingVoiceCommand(null);
+                    }}
+                    className="font-bold uppercase text-[10px] px-2.5 py-1.5 text-slate-500 hover:text-slate-300 hover:bg-slate-850 rounded transition-all cursor-pointer"
+                  >
+                    Discard
+                  </button>
+                </div>
+              </div>
+            )}
+
             {/* Microphone Activator Toggle bar */}
-            <div className="border-t border-cyan-500/10 px-6 py-4 flex items-center justify-between">
+            <div className="border-t border-cyan-500/10 px-6 py-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
               <div className="space-y-0.5">
                 <div className="font-display text-xs font-semibold text-slate-200">
-                  {micActive ? 'TRANSLATING SIR\'S VOCALS' : 'VOCAL LINK CHANNELS'}
+                  {micActive ? "TRANSLATING COMRADE'S VOCALS" : 'VOCAL LINK CHANNELS'}
                 </div>
                 <div className="font-mono text-[9px] text-cyan-500/40 uppercase">
-                  {micActive ? 'Hold space to cycle or double-tap matrix' : 'Press mic icon or hold screen ring'}
+                  {micActive ? 'Hold space to cycle or double-tap matrix' : 'Press mic, upload audio file, or open matrix bridge'}
                 </div>
               </div>
 
-              <div className="flex gap-2.5">
+              <div className="flex gap-2.5 items-center flex-wrap">
+                {/* Voice File Upload Bypass */}
+                <label 
+                  className="w-11 h-11 rounded-full border border-cyan-500/20 bg-slate-900/40 hover:bg-cyan-500/15 text-cyan-400 flex items-center justify-center cursor-pointer transition-all hover:border-cyan-500/50"
+                  title="Upload voice recording file to transcribe directly with Gemini"
+                >
+                  <input 
+                    type="file" 
+                    accept="audio/*" 
+                    onChange={handleAudioUpload} 
+                    className="hidden" 
+                  />
+                  <Upload className="w-4 h-4 text-cyan-400" />
+                </label>
+
+                <button
+                  onClick={() => {
+                    playSound('click');
+                    setIsVocalBridgeOpen(!isVocalBridgeOpen);
+                  }}
+                  className={`px-3 py-1.5 rounded-lg text-[10px] font-mono font-bold uppercase transition-all flex items-center gap-1.5 border ${
+                    isVocalBridgeOpen 
+                      ? 'bg-cyan-500/25 border-cyan-400 text-cyan-200' 
+                      : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-slate-200'
+                  }`}
+                  title="Toggle universal frame voice emulator & system diagnostics"
+                >
+                  <Activity className={`w-3.5 h-3.5 ${isVocalBridgeOpen ? 'animate-pulse' : ''}`} />
+                  MATRIX BRIDGE
+                </button>
+
+                {/* Hands-free Discussion Mode Toggle */}
+                <button
+                  onClick={() => {
+                    playSound('chime');
+                    const nextVal = !discussionMode;
+                    setDiscussionMode(nextVal);
+                    setLogs(prev => [
+                      ...prev,
+                      {
+                        id: `discussion-toggle-${Date.now()}`,
+                        sender: 'system',
+                        text: nextVal 
+                          ? `💬 DISCUSSION MODE ACTIVE: Continuous hands-free loop online. Polley-Infinity will listen, process context, answer, and resume listening automatically in a fluid conversational loop.`
+                          : `🚫 DISCUSSION MODE SILENCED: Returned to standard single-shot push-to-click controls.`,
+                        timestamp: new Date().toLocaleTimeString()
+                      }
+                    ]);
+                  }}
+                  className={`px-3 py-1.5 rounded-lg text-[10px] font-mono font-bold uppercase transition-all flex items-center gap-1.5 border ${
+                    discussionMode 
+                      ? 'bg-emerald-500/15 border-emerald-500/40 text-emerald-300 shadow-[0_0_10px_rgba(16,185,129,0.1)] hover:bg-emerald-500/25' 
+                      : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-slate-200'
+                  }`}
+                  title={discussionMode ? 'Hands-Free Loop is Active (AI will auto-listen after speaking)' : 'Turn On Hands-Free Discussion Loop'}
+                >
+                  <Volume2 className={`w-3.5 h-3.5 ${discussionMode ? 'animate-pulse text-emerald-400' : ''}`} />
+                  DISCUSSION {discussionMode ? 'ONLINE' : 'OFFLINE'}
+                </button>
+
+                {/* Voice Execution Option (Auto-Execute vs manual review Pause) */}
+                <button
+                  onClick={() => {
+                    playSound('chime');
+                    const nextVal = !autoExecuteVoice;
+                    setAutoExecuteVoice(nextVal);
+                    setLogs(prev => [
+                      ...prev,
+                      {
+                        id: `vocal-flow-toggle-${Date.now()}`,
+                        sender: 'system',
+                        text: nextVal 
+                          ? `⚡ AUTO-EXECUTE CHANNELS ONLINE: Voice commands will instantly be parsed and run by Polley-Infinity.`
+                          : `⏸️ PAUSE CHANNELS ACTIVE: Transcribed voice commands will hold in standby drafts for manual review and execution.`,
+                        timestamp: new Date().toLocaleTimeString()
+                      }
+                    ]);
+                  }}
+                  className={`px-3 py-1.5 rounded-lg text-[10px] font-mono font-bold uppercase transition-all flex items-center gap-1.5 border ${
+                    autoExecuteVoice
+                      ? 'bg-slate-900 border-slate-800 text-slate-400 hover:text-slate-200' 
+                      : 'bg-amber-500/15 border-amber-500/40 text-amber-300 shadow-[0_0_10px_rgba(245,158,11,0.1)] hover:bg-amber-500/25'
+                  }`}
+                  title={autoExecuteVoice ? 'Click to Pause voice commands before executing (Hold for verification)' : 'Click to Auto-Execute voice commands instantly'}
+                >
+                  <Command className={`w-3.5 h-3.5 ${!autoExecuteVoice ? 'animate-pulse text-amber-400' : ''}`} />
+                  VOICE PAUSE {autoExecuteVoice ? 'OFF' : 'ON'}
+                </button>
+
+                {/* Speaker Output Pause Option */}
+                {(jarvisStatus === 'speaking' || isSpeechPaused) && (
+                  <button
+                    onClick={() => {
+                      if (isSpeechPaused) {
+                        resumeSpeech();
+                      } else {
+                        pauseSpeech();
+                      }
+                    }}
+                    className={`px-3 py-1.5 rounded-lg text-[10px] font-mono font-bold uppercase transition-all flex items-center gap-1.5 border ${
+                      isSpeechPaused 
+                        ? 'bg-amber-500/15 border-amber-500/40 text-amber-350 shadow-[0_0_10px_rgba(245,158,11,0.1)] hover:bg-amber-500/25 animate-pulse' 
+                        : 'bg-indigo-500/15 border-indigo-500/40 text-indigo-300 hover:bg-indigo-500/25'
+                    }`}
+                    title={isSpeechPaused ? 'Click to Resume speaking' : 'Click to Pause active speech output'}
+                  >
+                    {isSpeechPaused ? (
+                      <>
+                        <Volume2 className="w-3.5 h-3.5 text-amber-400 animate-ping" />
+                        RESUME VOICE OUTPUT
+                      </>
+                    ) : (
+                      <>
+                        <Volume2 className="w-3.5 h-3.5 text-indigo-400 animate-pulse" />
+                        PAUSE VOICE OUTPUT
+                      </>
+                    )}
+                  </button>
+                )}
+
                 <button
                   onClick={toggleListening}
                   className={`w-11 h-11 rounded-full border flex items-center justify-center transition-all ${
@@ -852,10 +1467,141 @@ export default function App() {
                   }`}
                   title={micActive ? 'Silence Link' : 'Open Vocal Link'}
                 >
-                  {micActive ? <Mic className="w-5 h-5" /> : <MicOff className="w-5 h-5" />}
+                  {micActive ? <Mic className="w-5 h-5 animate-pulse" /> : <MicOff className="w-5 h-5" />}
                 </button>
               </div>
             </div>
+
+            {/* Universal Frame Voice Bridge & Pre-set Vocal Emulator Console */}
+            {isVocalBridgeOpen && (
+              <div className="border-t border-cyan-500/10 bg-black/40 p-5 rounded-b-2xl font-mono text-slate-400 animate-fadeIn">
+                <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b border-cyan-500/5 pb-4 mb-4">
+                  <div className="space-y-1">
+                    <span className="text-[10px] font-bold text-cyan-400 uppercase tracking-widest block flex items-center gap-1.5">
+                      <span className="w-1.5 h-1.5 bg-cyan-400 rounded-full animate-ping" />
+                      VOLTAIC VOICE EMULATOR & DIAGNOSTIC PANEL
+                    </span>
+                    <p className="text-[9px] text-slate-500 leading-normal max-w-lg">
+                      Sandboxed frame browser containers often restrict standard microphone streaming access. This secure matrix bridge allows you to execute voice diagnostics and simulate direct vocal triggers seamlessly.
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap gap-2 shrink-0">
+                    <button 
+                      onClick={() => {
+                        playSound('click');
+                        const url = window.location.href;
+                        window.open(url, '_blank');
+                      }}
+                      className="bg-cyan-500/10 hover:bg-cyan-500/20 border border-cyan-500/30 hover:border-cyan-400 text-cyan-300 px-2.5 py-1 rounded text-[9px] font-bold uppercase transition-all flex items-center gap-1"
+                    >
+                      <Globe className="w-3 h-3" />
+                      BYPASS: OPEN IN NEW TAB
+                    </button>
+                    <button 
+                      onClick={() => {
+                        playSound('chime');
+                        const statusCheck = !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia);
+                        setLogs(prev => [
+                          ...prev,
+                          {
+                            id: `chk-${Date.now()}`,
+                            sender: 'system',
+                            text: `📡 DIAGNOSTIC PROBE COMPLETE:\n- Browser Frame context: YES\n- Hardware MediaDevices: ${navigator.mediaDevices ? "DETECTED" : "UNDEFINED"}\n- GetUserMedia permissions payload: ${statusCheck ? "ALLOWED & READY" : "RESTRICTED BY IFRAME SECURITY"}\n\nREMEDY: If restricted, use the preset speech simulator triggers below to test all voice features, or open this operating system directly in a new tab!`,
+                            timestamp: new Date().toLocaleTimeString()
+                          }
+                        ]);
+                      }}
+                      className="bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-300 px-2.5 py-1 rounded text-[9px] font-bold uppercase transition-all"
+                    >
+                      RUN PROBE CHECK
+                    </button>
+                  </div>
+                </div>
+
+                <div className="space-y-3">
+                  <div className="text-[10px] uppercase font-bold text-slate-300 tracking-wider flex items-center gap-1.5">
+                    <Volume2 className="w-3.5 h-3.5 text-cyan-400" />
+                    SIMULATED SPEECH PHRASE DIRECTIVES:
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5 text-xs text-left">
+                    {[
+                      {
+                        label: "Status Inquiry",
+                        phrase: "Ankon, execute full grid diagnostics scan.",
+                        desc: "Analyze memory status and core stats parameters"
+                      },
+                      {
+                        label: "Vaporize Shielding",
+                        phrase: "Ankon, toggle primary shields.",
+                        desc: "Switch smart grid shield locks status"
+                      },
+                      {
+                        label: "Initiate Overload",
+                        phrase: "Ankon, trigger overload state.",
+                        desc: "Raise core temperature & visual alerts"
+                      },
+                      {
+                        label: "Party Environment",
+                        phrase: "Ankon, play ambient party synth.",
+                        desc: "Toggle party theme colors and background sound"
+                      },
+                      {
+                        label: "Incorporate Humor",
+                        phrase: "Ankon, tell me a quick joke.",
+                        desc: "Prompts Polley-Infinity client for a witty simulation"
+                      },
+                      {
+                        label: "Thermostat Lock",
+                        phrase: "Ankon, raise the core temperature to 75F.",
+                        desc: "Simulate smart climate grid adjustment"
+                      },
+                    ].map((item, index) => (
+                      <button
+                        key={index}
+                        onClick={() => {
+                          playSound('click');
+                          setJarvisStatus('listening');
+                          setMicActive(true);
+                          
+                          setTimeout(() => {
+                            setMicActive(false);
+                            setJarvisStatus('thinking');
+                            
+                            setTimeout(() => {
+                              setLogs(prev => [
+                                ...prev,
+                                {
+                                  id: `sim-vocal-${Date.now()}`,
+                                  sender: 'user',
+                                  text: item.phrase,
+                                  timestamp: new Date().toLocaleTimeString()
+                                }
+                              ]);
+                              handleDirectiveInput(item.phrase);
+                            }, 900);
+                          }, 1100);
+                        }}
+                        className="bg-slate-950 hover:bg-cyan-950/20 border border-slate-800 hover:border-cyan-500/40 p-3 rounded-xl transition-all text-left flex flex-col justify-between group cursor-pointer shadow-sm hover:shadow-[0_0_10px_rgba(6,182,212,0.1)]"
+                      >
+                        <div>
+                          <div className="font-bold text-cyan-400 text-[10px] uppercase tracking-wider group-hover:text-cyan-300 flex items-center justify-between">
+                            <span>{item.label}</span>
+                            <span className="text-[8px] bg-slate-900 border border-slate-800 text-slate-500 group-hover:text-cyan-400 group-hover:border-cyan-500/30 px-1 py-0.2 rounded font-mono font-normal">SIMULATE</span>
+                          </div>
+                          <p className="text-[11px] text-slate-200 font-medium italic mt-1 leading-snug">
+                            &ldquo;{item.phrase}&rdquo;
+                          </p>
+                        </div>
+                        <p className="text-[9px] text-slate-600 group-hover:text-slate-500 mt-2">
+                          {item.desc}
+                        </p>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
           </section>
 
           {/* Secure Sandbox Web Browser Component */}
@@ -974,7 +1720,7 @@ export default function App() {
           <section className="bg-slate-950/20 border border-slate-900 rounded-xl p-4">
             <div className="flex items-center gap-1.5 text-slate-400 mb-2">
               <HelpCircle className="w-4 h-4 text-cyan-500/60" />
-              <span className="font-mono text-[10px] uppercase font-bold tracking-wider">Sir's Suggested Directives Help Cheat-Sheet</span>
+              <span className="font-mono text-[10px] uppercase font-bold tracking-wider">Comrade's Suggested Directives Help Cheat-Sheet</span>
             </div>
             
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[10px] font-mono text-slate-500">

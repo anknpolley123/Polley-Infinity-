@@ -47,10 +47,11 @@ export default function TerminalShell({ logs, onCommandSubmit, isProcessing }: T
 
           if (isSys) {
             return (
-              <div key={log.id} className="flex gap-2 p-2 bg-yellow-500/5 border border-yellow-500/10 rounded-lg text-yellow-300 font-mono text-[10px]">
+              <div key={log.id} className="flex gap-2 p-2.5 bg-yellow-500/5 border border-yellow-500/10 rounded-lg text-yellow-300 font-mono text-[10px] whitespace-pre-wrap breakout-phrase">
                 <ShieldAlert className="w-4 h-4 text-yellow-400 flex-shrink-0 mt-0.5" />
-                <div className="leading-relaxed">
-                  <span className="font-bold">SYSTEMALERT @ {log.timestamp}:</span> {log.text}
+                <div className="leading-relaxed flex-1 break-words">
+                  <span className="font-bold text-yellow-400">SYSTEMALERT @ {log.timestamp}:</span>
+                  <div className="mt-1 font-mono text-slate-300 selection:bg-yellow-800 leading-normal">{log.text}</div>
                 </div>
               </div>
             );
@@ -63,7 +64,7 @@ export default function TerminalShell({ logs, onCommandSubmit, isProcessing }: T
             >
               {/* Header Label */}
               <div className="font-mono text-[8px] text-cyan-400/50 uppercase tracking-widest px-1">
-                {isUser ? 'SIR_TERMINAL' : 'INFINITY_CORE'} • {log.timestamp}
+                {isUser ? 'COMRADE_TERMINAL' : 'POLLEY-INFINITY'} • {log.timestamp}
               </div>
 
               {/* Chat Bubble */}
@@ -129,11 +130,11 @@ export default function TerminalShell({ logs, onCommandSubmit, isProcessing }: T
         {isProcessing && (
           <div className="flex flex-col gap-1 items-start mr-auto max-w-[85%] animate-pulse">
             <div className="font-mono text-[8px] text-amber-500/60 uppercase tracking-widest">
-              INFINITY_CORE • COGNITIVE INTENT ANALYSIS
+              POLLEY_INFINITY • COGNITIVE INTENT ANALYSIS
             </div>
             <div className="bg-black/30 border border-amber-500/20 text-amber-300 rounded-lg px-3.5 py-2 text-xs font-mono flex items-center gap-2">
               <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-ping" />
-              Compiling Sir's guidelines...
+              Compiling Comrade's guidelines...
             </div>
           </div>
         )}
@@ -150,7 +151,7 @@ export default function TerminalShell({ logs, onCommandSubmit, isProcessing }: T
             disabled={isProcessing}
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            placeholder={isProcessing ? "Analyzing Sir's requirements..." : "Inject voice/text payload..."}
+            placeholder={isProcessing ? "Analyzing Comrade's requirements..." : "Inject voice/text payload..."}
             className="flex-1 bg-transparent border-none text-xs text-slate-100 placeholder-slate-500 py-3 px-2.5 focus:outline-none font-mono"
             id="jarvis_command_input"
           />

@@ -106,7 +106,7 @@ export default function SimulatedDrive({
           <textarea
             required
             rows={6}
-            placeholder="Enter diagnostics, system notes, or custom JARVIS directives..."
+            placeholder="Enter diagnostics, system notes, or custom Polley-Infinity directives..."
             value={newFileContent}
             onChange={e => setNewFileContent(e.target.value)}
             className="flex-1 bg-black/40 border border-cyan-500/15 rounded p-3 text-xs font-mono text-slate-300 focus:outline-none focus:border-cyan-400/40 resize-none leading-relaxed"
